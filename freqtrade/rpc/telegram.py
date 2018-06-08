@@ -14,7 +14,6 @@ from telegram.ext import CommandHandler, Updater
 from freqtrade.__init__ import __version__
 from freqtrade.rpc.rpc import RPC
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -57,6 +56,11 @@ class Telegram(RPC):
     """
     Telegram, this class send messages to Telegram
     """
+
+    @property
+    def name(self) -> str:
+        return "telegram"
+
     def __init__(self, freqtrade) -> None:
         """
         Init the Telegram call, and init the super class RPC
@@ -119,6 +123,10 @@ class Telegram(RPC):
 
         self._updater.stop()
 
+    def send_msg(self, msg: str) -> None:
+        """ Send a message to telegram channel """
+        self._send_msg(msg)
+
     def is_enabled(self) -> bool:
         """
         Returns True if the telegram module is activated, False otherwise
@@ -145,10 +153,10 @@ class Telegram(RPC):
         # Fetch open trade
         (error, trades) = self.rpc_trade_status()
         if error:
-            self.send_msg(trades, bot=bot)
+            self._send_msg(trades, bot=bot)
         else:
             for trademsg in trades:
-                self.send_msg(trademsg, bot=bot)
+                self._send_msg(trademsg, bot=bot)
 
     @authorized_only
     def _status_table(self, bot: Bot, update: Update) -> None:
@@ -162,12 +170,12 @@ class Telegram(RPC):
         # Fetch open trade
         (err, df_statuses) = self.rpc_status_table()
         if err:
-            self.send_msg(df_statuses, bot=bot)
+            self._send_msg(df_statuses, bot=bot)
         else:
             message = tabulate(df_statuses, headers='keys', tablefmt='simple')
             message = "<pre>{}</pre>".format(message)
 
-            self.send_msg(message, parse_mode=ParseMode.HTML)
+            self._send_msg(message, parse_mode=ParseMode.HTML)
 
     @authorized_only
     def _daily(self, bot: Bot, update: Update) -> None:
@@ -188,7 +196,7 @@ class Telegram(RPC):
             self._config['fiat_display_currency']
         )
         if error:
-            self.send_msg(stats, bot=bot)
+            self._send_msg(stats, bot=bot)
         else:
             stats = tabulate(stats,
                              headers=[
@@ -202,7 +210,7 @@ class Telegram(RPC):
                           timescale,
                           stats
                       )
-            self.send_msg(message, bot=bot, parse_mode=ParseMode.HTML)
+            self._send_msg(message, bot=bot, parse_mode=ParseMode.HTML)
 
     @authorized_only
     def _profit(self, bot: Bot, update: Update) -> None:
@@ -218,7 +226,7 @@ class Telegram(RPC):
             self._config['fiat_display_currency']
         )
         if error:
-            self.send_msg(stats, bot=bot)
+            self._send_msg(stats, bot=bot)
             return
 
         # Message to display
@@ -249,7 +257,7 @@ class Telegram(RPC):
                            best_pair=stats['best_pair'],
                            best_rate=stats['best_rate']
                        )
-        self.send_msg(markdown_msg, bot=bot)
+        self._send_msg(markdown_msg, bot=bot)
 
     @authorized_only
     def _balance(self, bot: Bot, update: Update) -> None:
@@ -258,7 +266,7 @@ class Telegram(RPC):
         """
         (error, result) = self.rpc_balance(self._config['fiat_display_currency'])
         if error:
-            self.send_msg('`All balances are zero.`')
+            self._send_msg('`All balances are zero.`')
             return
 
         (currencys, total, symbol, value) = result
@@ -273,7 +281,7 @@ class Telegram(RPC):
         output += "\n*Estimated Value*:\n" \
                   "\t`BTC: {0: .8f}`\n" \
                   "\t`{1}: {2: .2f}`\n".format(total, symbol, value)
-        self.send_msg(output)
+        self._send_msg(output)
 
     @authorized_only
     def _start(self, bot: Bot, update: Update) -> None:
@@ -286,7 +294,7 @@ class Telegram(RPC):
         """
         (error, msg) = self.rpc_start()
         if error:
-            self.send_msg(msg, bot=bot)
+            self._send_msg(msg, bot=bot)
 
     @authorized_only
     def _stop(self, bot: Bot, update: Update) -> None:
@@ -298,7 +306,7 @@ class Telegram(RPC):
         :return: None
         """
         (error, msg) = self.rpc_stop()
-        self.send_msg(msg, bot=bot)
+        self._send_msg(msg, bot=bot)
 
     @authorized_only
     def _forcesell(self, bot: Bot, update: Update) -> None:
@@ -313,7 +321,7 @@ class Telegram(RPC):
         trade_id = update.message.text.replace('/forcesell', '').strip()
         (error, message) = self.rpc_forcesell(trade_id)
         if error:
-            self.send_msg(message, bot=bot)
+            self._send_msg(message, bot=bot)
             return
 
     @authorized_only
@@ -327,7 +335,7 @@ class Telegram(RPC):
         """
         (error, trades) = self.rpc_performance()
         if error:
-            self.send_msg(trades, bot=bot)
+            self._send_msg(trades, bot=bot)
             return
 
         stats = '\n'.join('{index}.\t<code>{pair}\t{profit:.2f}% ({count})</code>'.format(
@@ -337,7 +345,7 @@ class Telegram(RPC):
             count=trade['count']
         ) for i, trade in enumerate(trades))
         message = '<b>Performance:</b>\n{}'.format(stats)
-        self.send_msg(message, parse_mode=ParseMode.HTML)
+        self._send_msg(message, parse_mode=ParseMode.HTML)
 
     @authorized_only
     def _count(self, bot: Bot, update: Update) -> None:
@@ -350,7 +358,7 @@ class Telegram(RPC):
         """
         (error, trades) = self.rpc_count()
         if error:
-            self.send_msg(trades, bot=bot)
+            self._send_msg(trades, bot=bot)
             return
 
         message = tabulate({
@@ -360,7 +368,7 @@ class Telegram(RPC):
         }, headers=['current', 'max', 'total stake'], tablefmt='simple')
         message = "<pre>{}</pre>".format(message)
         logger.debug(message)
-        self.send_msg(message, parse_mode=ParseMode.HTML)
+        self._send_msg(message, parse_mode=ParseMode.HTML)
 
     @authorized_only
     def _help(self, bot: Bot, update: Update) -> None:
@@ -386,7 +394,7 @@ class Telegram(RPC):
                   "*/help:* `This help message`\n" \
                   "*/version:* `Show version`"
 
-        self.send_msg(message, bot=bot)
+        self._send_msg(message, bot=bot)
 
     @authorized_only
     def _version(self, bot: Bot, update: Update) -> None:
@@ -397,10 +405,10 @@ class Telegram(RPC):
         :param update: message update
         :return: None
         """
-        self.send_msg('*Version:* `{}`'.format(__version__), bot=bot)
+        self._send_msg('*Version:* `{}`'.format(__version__), bot=bot)
 
-    def send_msg(self, msg: str, bot: Bot = None,
-                 parse_mode: ParseMode = ParseMode.MARKDOWN) -> None:
+    def _send_msg(self, msg: str, bot: Bot = None,
+                  parse_mode: ParseMode = ParseMode.MARKDOWN) -> None:
         """
         Send given markdown message
         :param msg: message
